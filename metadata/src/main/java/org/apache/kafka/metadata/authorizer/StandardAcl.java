@@ -27,7 +27,9 @@ import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
 
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -64,6 +66,8 @@ public final class StandardAcl implements Comparable<StandardAcl> {
     private final AclOperation operation;
     private final AclPermissionType permissionType;
 
+    private static final Map<String, KafkaPrincipal> PRINCIPAL_CACHE = new ConcurrentHashMap<>();
+
     public StandardAcl(
                 ResourceType resourceType,
                 String resourceName,
@@ -98,14 +102,14 @@ public final class StandardAcl implements Comparable<StandardAcl> {
     }
 
     public KafkaPrincipal kafkaPrincipal() {
-        int colonIndex = principal.indexOf(":");
-        if (colonIndex == -1) {
-            throw new IllegalStateException("Could not parse principal from `" + principal + "` " +
-                "(no colon is present separating the principal type from the principal name)");
-        }
-        String principalType = principal.substring(0, colonIndex);
-        String principalName = principal.substring(colonIndex + 1);
-        return new KafkaPrincipal(principalType, principalName);
+        return PRINCIPAL_CACHE.computeIfAbsent(principal, principalStr -> {
+            int colonIndex = principalStr.indexOf(":");
+            if (colonIndex == -1) {
+                throw new IllegalStateException("Could not parse principal from `" + principalStr + "` " +
+                    "(no colon is present separating the principal type from the principal name)");
+            }
+            return new KafkaPrincipal(principalStr.substring(0, colonIndex), principalStr.substring(colonIndex + 1));
+        });
     }
 
     public String host() {

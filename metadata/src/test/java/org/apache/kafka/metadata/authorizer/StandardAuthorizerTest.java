@@ -429,6 +429,48 @@ public class StandardAuthorizerTest {
     }
 
     @Test
+    public void testCheckSectionNoCommonPrefix() throws Exception {
+        StandardAuthorizer authorizer = new StandardAuthorizer();
+        HashMap<String, Object> configs = new HashMap<>();
+        configs.put(SUPER_USERS_CONFIG, "User:alice");
+        authorizer.configure(configs);
+        authorizer.start(new AuthorizerTestServerInfo(Collections.singletonList(PLAINTEXT)));
+        authorizer.completeInitialLoad();
+        List<StandardAcl> acls = Arrays.asList(
+            new StandardAcl(TOPIC, "bar", PREFIXED, "User:bob", "*", READ, ALLOW),
+            new StandardAcl(TOPIC, "foo_", PREFIXED, "User:bob", "*", READ, ALLOW)
+        );
+        acls.forEach(acl -> {
+            StandardAclWithId aclWithId = withId(acl);
+            authorizer.addAcl(aclWithId.id(), aclWithId.acl());
+        });
+        assertEquals(singletonList(ALLOWED), authorizer.authorize(
+            newRequestContext("bob"),
+            singletonList(newAction(READ, TOPIC, "foo_"))));
+    }
+
+    @Test
+    public void testCheckSectionNarrowing() throws Exception {
+        StandardAuthorizer authorizer = new StandardAuthorizer();
+        HashMap<String, Object> configs = new HashMap<>();
+        configs.put(SUPER_USERS_CONFIG, "User:alice");
+        authorizer.configure(configs);
+        authorizer.start(new AuthorizerTestServerInfo(Collections.singletonList(PLAINTEXT)));
+        authorizer.completeInitialLoad();
+        List<StandardAcl> acls = Arrays.asList(
+            new StandardAcl(TOPIC, "caa", PREFIXED, "User:bob", "*", READ, ALLOW),
+            new StandardAcl(TOPIC, "ca", PREFIXED, "User:bob", "*", READ, ALLOW)
+        );
+        acls.forEach(acl -> {
+            StandardAclWithId aclWithId = withId(acl);
+            authorizer.addAcl(aclWithId.id(), aclWithId.acl());
+        });
+        assertEquals(singletonList(ALLOWED), authorizer.authorize(
+            newRequestContext("bob"),
+            singletonList(newAction(READ, TOPIC, "cat"))));
+    }
+
+    @Test
     public void testTopicAclWithOperationAll() throws Exception {
         StandardAuthorizer authorizer = createAndInitializeStandardAuthorizer();
         List<StandardAcl> acls = Arrays.asList(
