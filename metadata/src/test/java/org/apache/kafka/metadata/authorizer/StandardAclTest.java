@@ -34,6 +34,7 @@ import static org.apache.kafka.metadata.authorizer.StandardAuthorizerData.WILDCA
 import static org.apache.kafka.metadata.authorizer.StandardAuthorizerData.WILDCARD_PRINCIPAL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 
 @Timeout(value = 40)
@@ -116,5 +117,31 @@ public class StandardAclTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void testKafkaPrincipalIsCached() {
+        StandardAcl acl = new StandardAcl(
+            ResourceType.TOPIC, "foo", PatternType.LITERAL,
+            "User:alice", "*", AclOperation.READ, AclPermissionType.ALLOW);
+        assertSame(acl.kafkaPrincipal(), acl.kafkaPrincipal());
+    }
+
+    @Test
+    public void testKafkaPrincipalParsing() {
+        StandardAcl acl = new StandardAcl(
+            ResourceType.TOPIC, "foo", PatternType.LITERAL,
+            "User:alice", "*", AclOperation.READ, AclPermissionType.ALLOW);
+        assertEquals("User", acl.kafkaPrincipal().getPrincipalType());
+        assertEquals("alice", acl.kafkaPrincipal().getName());
+    }
+
+    @Test
+    public void testKafkaPrincipalWildcard() {
+        StandardAcl acl = new StandardAcl(
+            ResourceType.CLUSTER, "kafka-cluster", PatternType.LITERAL,
+            "User:*", "*", AclOperation.ALTER, AclPermissionType.ALLOW);
+        assertEquals("User", acl.kafkaPrincipal().getPrincipalType());
+        assertEquals("*", acl.kafkaPrincipal().getName());
     }
 }
